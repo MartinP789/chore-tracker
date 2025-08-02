@@ -10,7 +10,15 @@
         body {
             font-family: 'Inter', sans-serif;
         }
-        /* Custom classes for turn states for better readability in JS */
+        /* --- NEW: Keyframes for flashing animation --- */
+        @keyframes flash-red {
+            50% {
+                background-color: #991b1b; /* red-800 */
+                border-color: #7f1d1d; /* red-900 */
+            }
+        }
+
+        /* Base state for turns */
         .turn-active {
             background-color: #fef08a; /* yellow-200 */
             border-left: 4px solid #eab308; /* yellow-500 */
@@ -18,6 +26,22 @@
         .dark .turn-active {
             background-color: #422006; /* yellow-950 */
         }
+
+        /* --- NEW: Warning state (solid red) --- */
+        .turn-warning {
+            background-color: #fecaca; /* red-200 */
+            border-left: 4px solid #ef4444; /* red-500 */
+        }
+        .dark .turn-warning {
+            background-color: #450a0a; /* red-950 */
+        }
+        
+        /* --- NEW: Urgent state (flashing red) --- */
+        .turn-urgent {
+            border-left: 4px solid #ef4444; /* red-500 */
+            animation: flash-red 1s infinite;
+        }
+
         .turn-done {
             background-color: #dcfce7; /* green-200 */
             border-left: 4px solid #22c55e; /* green-500 */
@@ -30,118 +54,109 @@
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 flex items-center justify-center min-h-screen p-4">
 
-    <!-- Main container for the chore tracker -->
     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md">
         
-        <!-- Header Section -->
         <div class="text-center mb-8">
             <h1 class="text-3xl font-bold text-gray-800 dark:text-white">Who's Turn Is It?</h1>
             <p class="text-gray-500 dark:text-gray-400 mt-2">Bathroom Cleaning Rotation</p>
         </div>
 
-        <!-- Roommate List -->
         <div id="roommate-list" class="space-y-4">
-            
-            <!-- Each roommate div has a 'roommate' class and a data-index for JS -->
             <div class="roommate flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl transition-all duration-300 cursor-pointer" data-index="0">
                 <span class="text-lg font-medium text-gray-900 dark:text-white">Alex</span>
             </div>
-
             <div class="roommate flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl transition-all duration-300 cursor-pointer" data-index="1">
                 <span class="text-lg font-medium text-gray-900 dark:text-white">Ben</span>
             </div>
-
             <div class="roommate flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl transition-all duration-300 cursor-pointer" data-index="2">
                 <span class="text-lg font-medium text-gray-900 dark:text-white">Casey</span>
             </div>
-
             <div class="roommate flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl transition-all duration-300 cursor-pointer" data-index="3">
                 <span class="text-lg font-medium text-gray-900 dark:text-white">Dana</span>
             </div>
-
         </div>
 
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // --- NEW: Ask for permission to send notifications ---
-            // We ask for permission right when the page loads.
             if (Notification.permission !== 'granted') {
                 Notification.requestPermission();
             }
 
-            // Select all roommate elements
             const roommateElements = document.querySelectorAll('.roommate');
-            
-            // --- NEW: Store roommate names in an array for easy access ---
             const roommateNames = Array.from(roommateElements).map(el => el.querySelector('span').textContent);
-
-            // State to keep track of whose turn it is
             let currentTurnIndex = 0;
 
-            // --- NEW: Function to send a notification ---
-            function sendNotification(name) {
-                // Check if permission has been granted
+            // --- NEW: To store the IDs of our scheduled timeouts ---
+            let activeTimeouts = [];
+
+            // --- UPDATED: Function to send notifications with custom title/body ---
+            function sendNotification(title, body) {
                 if (Notification.permission === 'granted') {
-                    const notification = new Notification("It's chore time!", {
-                        body: `Hey ${name}, it's your turn to clean the bathroom!`,
-                        // You can optionally add an icon here
-                        // icon: 'path/to/icon.png' 
-                    });
+                    new Notification(title, { body });
                 }
             }
 
-            // Function to update the visual state of the list
             function updateDisplay() {
-                roommateElements.forEach((roommate, index) => {
-                    // Clear previous state classes
-                    roommate.classList.remove('turn-active', 'turn-done');
+                // --- NEW: Clear any previously scheduled notifications before updating ---
+                activeTimeouts.forEach(clearTimeout);
+                activeTimeouts = [];
 
-                    if (index === currentTurnIndex) {
-                        // Add 'turn-active' class (yellow) to the current person
-                        roommate.classList.add('turn-active');
-                        
-                        // --- NEW: Trigger the notification for the active person ---
-                        // We check if it's not the very first load (index 0) to avoid an immediate notification
-                        // You can remove `&& currentTurnIndex > 0` if you want a notification for the first person on load.
-                        if (currentTurnIndex < roommateNames.length) {
-                             sendNotification(roommateNames[currentTurnIndex]);
-                        }
-                       
-                    } else if (index < currentTurnIndex) {
-                        // Add 'turn-done' class (green) to people who have finished
+                roommateElements.forEach((roommate, index) => {
+                    // Clear all previous state classes
+                    roommate.classList.remove('turn-active', 'turn-done', 'turn-warning', 'turn-urgent');
+
+                    if (index < currentTurnIndex) {
                         roommate.classList.add('turn-done');
+                    } else if (index === currentTurnIndex) {
+                        const currentPersonName = roommateNames[currentTurnIndex];
+                        
+                        // --- STAGE 1: Initial Yellow State ---
+                        roommate.classList.add('turn-active');
+                        sendNotification("Chore Reminder", `${currentPersonName} is next to clean the bathroom.`);
+
+                        // --- STAGE 2: Schedule the change to Red ---
+                        const warningTimeout = setTimeout(() => {
+                            roommate.classList.remove('turn-active');
+                            roommate.classList.add('turn-warning');
+                            sendNotification("Chore Warning!", "You have three days to clean the bathroom.");
+                        }, 20000); // 20 seconds
+
+                        // --- STAGE 3: Schedule the change to Flashing Red ---
+                        const urgentTimeout = setTimeout(() => {
+                            roommate.classList.remove('turn-warning');
+                            roommate.classList.add('turn-urgent');
+                            // As requested, this is the final notification.
+                            sendNotification("URGENT: CHORE OVERDUE", "you fucked up bastard");
+                        }, 50000); // 20s + 30s = 50 seconds total
+
+                        // Store the timeout IDs so we can cancel them if needed
+                        activeTimeouts.push(warningTimeout, urgentTimeout);
                     }
                 });
 
-                // If all roommates have had a turn, reset the cycle
+                // Reset logic
                 if (currentTurnIndex >= roommateElements.length) {
                     currentTurnIndex = 0;
-                    // --- FIX: Changed 'roommates' to 'roommateElements' ---
-                    roommateElements.forEach(r => r.classList.remove('turn-done'));
-                    updateDisplay(); // Rerun to set the first person to active
+                    updateDisplay();
                 }
             }
 
-            // Function to advance to the next person
             function advanceTurn() {
                 currentTurnIndex++;
                 updateDisplay();
             }
 
-            // Add click event listeners to each roommate
             roommateElements.forEach(roommate => {
                 roommate.addEventListener('click', () => {
                     const clickedIndex = parseInt(roommate.dataset.index);
-                    // Only advance the turn if the currently active person is clicked
                     if (clickedIndex === currentTurnIndex) {
                         advanceTurn();
                     }
                 });
             });
 
-            // Initial call to set the first person's turn
             updateDisplay();
         });
     </script>
