@@ -7,49 +7,15 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        /* --- NEW: Keyframes for flashing animation --- */
-        @keyframes flash-red {
-            50% {
-                background-color: #991b1b; /* red-800 */
-                border-color: #7f1d1d; /* red-900 */
-            }
-        }
-
-        /* Base state for turns */
-        .turn-active {
-            background-color: #fef08a; /* yellow-200 */
-            border-left: 4px solid #eab308; /* yellow-500 */
-        }
-        .dark .turn-active {
-            background-color: #422006; /* yellow-950 */
-        }
-
-        /* --- NEW: Warning state (solid red) --- */
-        .turn-warning {
-            background-color: #fecaca; /* red-200 */
-            border-left: 4px solid #ef4444; /* red-500 */
-        }
-        .dark .turn-warning {
-            background-color: #450a0a; /* red-950 */
-        }
-        
-        /* --- NEW: Urgent state (flashing red) --- */
-        .turn-urgent {
-            border-left: 4px solid #ef4444; /* red-500 */
-            animation: flash-red 1s infinite;
-        }
-
-        .turn-done {
-            background-color: #dcfce7; /* green-200 */
-            border-left: 4px solid #22c55e; /* green-500 */
-            opacity: 0.7;
-        }
-        .dark .turn-done {
-            background-color: #14532d; /* green-900 */
-        }
+        body { font-family: 'Inter', sans-serif; }
+        @keyframes flash-red { 50% { background-color: #991b1b; border-color: #7f1d1d; } }
+        .turn-active { background-color: #fef08a; border-left: 4px solid #eab308; }
+        .dark .turn-active { background-color: #422006; }
+        .turn-warning { background-color: #fecaca; border-left: 4px solid #ef4444; }
+        .dark .turn-warning { background-color: #450a0a; }
+        .turn-urgent { border-left: 4px solid #ef4444; animation: flash-red 1s infinite; }
+        .turn-done { background-color: #dcfce7; border-left: 4px solid #22c55e; opacity: 0.7; }
+        .dark .turn-done { background-color: #14532d; }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 flex items-center justify-center min-h-screen p-4">
@@ -62,49 +28,68 @@
         </div>
 
         <div id="roommate-list" class="space-y-4">
-            <div class="roommate flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl transition-all duration-300 cursor-pointer" data-index="0">
-                <span class="text-lg font-medium text-gray-900 dark:text-white">Alex</span>
-            </div>
-            <div class="roommate flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl transition-all duration-300 cursor-pointer" data-index="1">
-                <span class="text-lg font-medium text-gray-900 dark:text-white">Ben</span>
-            </div>
-            <div class="roommate flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl transition-all duration-300 cursor-pointer" data-index="2">
-                <span class="text-lg font-medium text-gray-900 dark:text-white">Casey</span>
-            </div>
-            <div class="roommate flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl transition-all duration-300 cursor-pointer" data-index="3">
-                <span class="text-lg font-medium text-gray-900 dark:text-white">Dana</span>
-            </div>
+            <div class="roommate flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl transition-all duration-300 cursor-pointer" data-index="0"><span class="text-lg font-medium text-gray-900 dark:text-white">Alex</span></div>
+            <div class="roommate flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl transition-all duration-300 cursor-pointer" data-index="1"><span class="text-lg font-medium text-gray-900 dark:text-white">Ben</span></div>
+            <div class="roommate flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl transition-all duration-300 cursor-pointer" data-index="2"><span class="text-lg font-medium text-gray-900 dark:text-white">Casey</span></div>
+            <div class="roommate flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl transition-all duration-300 cursor-pointer" data-index="3"><span class="text-lg font-medium text-gray-900 dark:text-white">Dana</span></div>
+        </div>
+        
+        <div class="mt-6 text-center">
+            <button id="toggle-log-btn" class="w-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">Show Log</button>
+        </div>
+
+        <div id="log-section" class="hidden mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <h2 class="text-xl font-bold text-center text-gray-700 dark:text-gray-300 mb-4">Cleaning Log</h2>
+            <ul id="log-list" class="space-y-2 text-sm text-gray-600 dark:text-gray-400 max-h-48 overflow-y-auto"></ul>
         </div>
 
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            if (Notification.permission !== 'granted') {
-                Notification.requestPermission();
-            }
+            // --- UPDATED: Using your live backend URL from Render.com ---
+            const BACKEND_URL = 'https://chore-tracker-gkpq.onrender.com';
 
             const roommateElements = document.querySelectorAll('.roommate');
             const roommateNames = Array.from(roommateElements).map(el => el.querySelector('span').textContent);
             let currentTurnIndex = 0;
-
-            // --- NEW: To store the IDs of our scheduled timeouts ---
             let activeTimeouts = [];
 
-            // --- UPDATED: Function to send notifications with custom title/body ---
-            function sendNotification(title, body) {
-                if (Notification.permission === 'granted') {
-                    new Notification(title, { body });
+            const logSection = document.getElementById('log-section');
+            const logList = document.getElementById('log-list');
+            const toggleLogBtn = document.getElementById('toggle-log-btn');
+
+            // --- REWRITTEN: This function now sends a request to your backend ---
+            async function sendNotification(message) {
+                if (!BACKEND_URL.startsWith('https')) {
+                    console.warn('Backend URL is not set. Skipping notification.');
+                    return;
                 }
+                try {
+                    await fetch(`${BACKEND_URL}/notify`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ message: message }),
+                    });
+                } catch (error) {
+                    console.error('Failed to send notification:', error);
+                }
+            }
+            
+            function addLogEntry(message) {
+                const logItem = document.createElement('li');
+                logItem.className = 'p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md';
+                logItem.textContent = message;
+                logList.prepend(logItem);
             }
 
             function updateDisplay() {
-                // --- NEW: Clear any previously scheduled notifications before updating ---
                 activeTimeouts.forEach(clearTimeout);
                 activeTimeouts = [];
 
                 roommateElements.forEach((roommate, index) => {
-                    // Clear all previous state classes
                     roommate.classList.remove('turn-active', 'turn-done', 'turn-warning', 'turn-urgent');
 
                     if (index < currentTurnIndex) {
@@ -112,31 +97,25 @@
                     } else if (index === currentTurnIndex) {
                         const currentPersonName = roommateNames[currentTurnIndex];
                         
-                        // --- STAGE 1: Initial Yellow State ---
                         roommate.classList.add('turn-active');
-                        sendNotification("Chore Reminder", `${currentPersonName} is next to clean the bathroom.`);
+                        sendNotification(`**Chore Reminder:** ${currentPersonName} is next to clean the bathroom.`);
 
-                        // --- STAGE 2: Schedule the change to Red ---
                         const warningTimeout = setTimeout(() => {
                             roommate.classList.remove('turn-active');
                             roommate.classList.add('turn-warning');
-                            sendNotification("Chore Warning!", "You have three days to clean the bathroom.");
-                        }, 20000); // 20 seconds
+                            sendNotification(`**Chore Warning!** You have three days to clean the bathroom.`);
+                        }, 20000);
 
-                        // --- STAGE 3: Schedule the change to Flashing Red ---
                         const urgentTimeout = setTimeout(() => {
                             roommate.classList.remove('turn-warning');
                             roommate.classList.add('turn-urgent');
-                            // As requested, this is the final notification.
-                            sendNotification("URGENT: CHORE OVERDUE", "you fucked up bastard");
-                        }, 50000); // 20s + 30s = 50 seconds total
+                            sendNotification(`**URGENT: CHORE OVERDUE** @here you fucked up bastard`);
+                        }, 50000);
 
-                        // Store the timeout IDs so we can cancel them if needed
                         activeTimeouts.push(warningTimeout, urgentTimeout);
                     }
                 });
 
-                // Reset logic
                 if (currentTurnIndex >= roommateElements.length) {
                     currentTurnIndex = 0;
                     updateDisplay();
@@ -144,9 +123,17 @@
             }
 
             function advanceTurn() {
+                const completedBy = roommateNames[currentTurnIndex];
+                const timestamp = new Date().toLocaleString();
+                addLogEntry(`${completedBy} cleaned the bathroom on ${timestamp}.`);
                 currentTurnIndex++;
                 updateDisplay();
             }
+
+            toggleLogBtn.addEventListener('click', () => {
+                logSection.classList.toggle('hidden');
+                toggleLogBtn.textContent = logSection.classList.contains('hidden') ? 'Show Log' : 'Hide Log';
+            });
 
             roommateElements.forEach(roommate => {
                 roommate.addEventListener('click', () => {
