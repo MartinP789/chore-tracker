@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roommate Chore Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom classes for turn states for better readability in JS */
+        .turn-active {
+            background-color: #fef08a; /* yellow-200 */
+            border-left: 4px solid #eab308; /* yellow-500 */
+        }
+        .dark .turn-active {
+            background-color: #422006; /* yellow-950 */
+        }
+        .turn-done {
+            background-color: #dcfce7; /* green-200 */
+            border-left: 4px solid #22c55e; /* green-500 */
+            opacity: 0.7;
+        }
+        .dark .turn-done {
+            background-color: #14532d; /* green-900 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 flex items-center justify-center min-h-screen p-4">
+
+    <!-- Main container for the chore tracker -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md">
+        
+        <!-- Header Section -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 dark:text-white">Who's Turn Is It?</h1>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">Bathroom Cleaning Rotation</p>
+        </div>
+
+        <!-- Roommate List -->
+        <div id="roommate-list" class="space-y-4">
+            
+            <!-- Each roommate div has a 'roommate' class and a data-index for JS -->
+            <div class="roommate flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl transition-all duration-300 cursor-pointer" data-index="0">
+                <span class="text-lg font-medium text-gray-900 dark:text-white">Alex</span>
+            </div>
+
+            <div class="roommate flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl transition-all duration-300 cursor-pointer" data-index="1">
+                <span class="text-lg font-medium text-gray-900 dark:text-white">Ben</span>
+            </div>
+
+            <div class="roommate flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl transition-all duration-300 cursor-pointer" data-index="2">
+                <span class="text-lg font-medium text-gray-900 dark:text-white">Casey</span>
+            </div>
+
+            <div class="roommate flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl transition-all duration-300 cursor-pointer" data-index="3">
+                <span class="text-lg font-medium text-gray-900 dark:text-white">Dana</span>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- NEW: Ask for permission to send notifications ---
+            // We ask for permission right when the page loads.
+            if (Notification.permission !== 'granted') {
+                Notification.requestPermission();
+            }
+
+            // Select all roommate elements
+            const roommateElements = document.querySelectorAll('.roommate');
+            
+            // --- NEW: Store roommate names in an array for easy access ---
+            const roommateNames = Array.from(roommateElements).map(el => el.querySelector('span').textContent);
+
+            // State to keep track of whose turn it is
+            let currentTurnIndex = 0;
+
+            // --- NEW: Function to send a notification ---
+            function sendNotification(name) {
+                // Check if permission has been granted
+                if (Notification.permission === 'granted') {
+                    const notification = new Notification("It's chore time!", {
+                        body: `Hey ${name}, it's your turn to clean the bathroom!`,
+                        // You can optionally add an icon here
+                        // icon: 'path/to/icon.png' 
+                    });
+                }
+            }
+
+            // Function to update the visual state of the list
+            function updateDisplay() {
+                roommateElements.forEach((roommate, index) => {
+                    // Clear previous state classes
+                    roommate.classList.remove('turn-active', 'turn-done');
+
+                    if (index === currentTurnIndex) {
+                        // Add 'turn-active' class (yellow) to the current person
+                        roommate.classList.add('turn-active');
+                        
+                        // --- NEW: Trigger the notification for the active person ---
+                        // We check if it's not the very first load (index 0) to avoid an immediate notification
+                        // You can remove `&& currentTurnIndex > 0` if you want a notification for the first person on load.
+                        if (currentTurnIndex < roommateNames.length) {
+                             sendNotification(roommateNames[currentTurnIndex]);
+                        }
+                       
+                    } else if (index < currentTurnIndex) {
+                        // Add 'turn-done' class (green) to people who have finished
+                        roommate.classList.add('turn-done');
+                    }
+                });
+
+                // If all roommates have had a turn, reset the cycle
+                if (currentTurnIndex >= roommateElements.length) {
+                    currentTurnIndex = 0;
+                    // --- FIX: Changed 'roommates' to 'roommateElements' ---
+                    roommateElements.forEach(r => r.classList.remove('turn-done'));
+                    updateDisplay(); // Rerun to set the first person to active
+                }
+            }
+
+            // Function to advance to the next person
+            function advanceTurn() {
+                currentTurnIndex++;
+                updateDisplay();
+            }
+
+            // Add click event listeners to each roommate
+            roommateElements.forEach(roommate => {
+                roommate.addEventListener('click', () => {
+                    const clickedIndex = parseInt(roommate.dataset.index);
+                    // Only advance the turn if the currently active person is clicked
+                    if (clickedIndex === currentTurnIndex) {
+                        advanceTurn();
+                    }
+                });
+            });
+
+            // Initial call to set the first person's turn
+            updateDisplay();
+        });
+    </script>
+
+</body>
+</html>
