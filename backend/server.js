@@ -29,8 +29,8 @@ app.post('/notify', async (req, res) => {
     let payload;
 
     if (isThankYou) {
-      // --- UPDATED: Changed the search tags for the Giphy API ---
-      const giphySearchUrl = `https://api.giphy.com/v1/gifs/random?api_key=${giphyApiKey}&tag=bathroom,toilet,cleaning&rating=g`;
+      // --- UPDATED: Changed the search tag for the Giphy API to "toilet" ---
+      const giphySearchUrl = `https://api.giphy.com/v1/gifs/random?api_key=${giphyApiKey}&tag=toilet&rating=g`;
       const giphyResponse = await axios.get(giphySearchUrl);
       const gifUrl = giphyResponse.data.data.images.original.url;
 
