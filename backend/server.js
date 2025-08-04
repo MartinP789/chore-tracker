@@ -1,52 +1,51 @@
 // File: backend/server.js
 
-// Import necessary packages
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-
-// This allows us to use the .env file for the secret URL during local testing
 require('dotenv').config();
 
-// Create the Express app
 const app = express();
-const port = process.env.PORT || 3000; // Render will set the PORT environment variable
+const port = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors()); // Enable Cross-Origin Resource Sharing so your frontend can talk to this backend
-app.use(express.json()); // Allow the server to understand JSON formatted requests
+app.use(cors());
+app.use(express.json());
 
-// --- The Main Notification Endpoint ---
-// Your frontend will send requests to this URL path: /notify
 app.post('/notify', async (req, res) => {
-  // Get the secret Discord Webhook URL from environment variables.
-  // This is the secure way to handle secrets.
   const discordWebhookUrl = process.env.DISCORD_WEBHOOK_URL;
-  
-  // Get the message from the request sent by the frontend
-  const { message } = req.body;
+  // --- NEW: Destructure both message and an optional gifUrl from the request ---
+  const { message, gifUrl } = req.body;
 
-  // --- Basic Validation ---
   if (!discordWebhookUrl) {
-    console.error("Discord Webhook URL is not set in environment variables.");
-    // Send an error response back to the frontend
+    console.error("Discord Webhook URL is not set.");
     return res.status(500).json({ error: 'Server configuration error.' });
   }
   if (!message) {
     return res.status(400).json({ error: 'Message content is required.' });
   }
 
-  // --- Send the message to Discord ---
   try {
-    // We format the data exactly as the Discord API expects it.
-    const payload = {
-      content: message
-    };
+    let payload;
 
-    // Use axios to send the POST request to Discord's Webhook URL
+    // --- NEW: Check if a gifUrl was provided ---
+    if (gifUrl) {
+      // If we have a GIF, create a special "embed" payload for Discord
+      payload = {
+        content: `**Thank you, ${message}!**`, // The name will be in the message
+        embeds: [{
+          image: {
+            url: gifUrl
+          }
+        }]
+      };
+    } else {
+      // If no GIF, send a normal text message
+      payload = {
+        content: message
+      };
+    }
+
     await axios.post(discordWebhookUrl, payload);
-    
-    // If successful, send a success response back to the frontend
     res.status(200).json({ success: true, message: 'Notification sent.' });
 
   } catch (error) {
@@ -55,7 +54,6 @@ app.post('/notify', async (req, res) => {
   }
 });
 
-// Start the server
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
