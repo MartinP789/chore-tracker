@@ -13,7 +13,6 @@ app.use(express.json());
 
 app.post('/notify', async (req, res) => {
   const discordWebhookUrl = process.env.DISCORD_WEBHOOK_URL;
-  // --- NEW: Get the Giphy API key from environment variables ---
   const giphyApiKey = process.env.GIPHY_API_KEY;
   
   const { message, isThankYou } = req.body;
@@ -29,14 +28,12 @@ app.post('/notify', async (req, res) => {
   try {
     let payload;
 
-    // --- NEW: Check if this is a "thank you" notification ---
     if (isThankYou) {
-      // 1. Search Giphy for a random GIF
-      const giphySearchUrl = `https://api.giphy.com/v1/gifs/random?api_key=${giphyApiKey}&tag=cleaning,thankyou&rating=g`;
+      // --- UPDATED: Changed the search tags for the Giphy API ---
+      const giphySearchUrl = `https://api.giphy.com/v1/gifs/random?api_key=${giphyApiKey}&tag=bathroom,toilet,cleaning&rating=g`;
       const giphyResponse = await axios.get(giphySearchUrl);
       const gifUrl = giphyResponse.data.data.images.original.url;
 
-      // 2. Create the embed payload for Discord
       payload = {
         content: `**Thank you, ${message}!** Great job!`,
         embeds: [{ image: { url: gifUrl } }]
