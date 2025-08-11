@@ -15,7 +15,7 @@ app.post('/notify', async (req, res) => {
   const discordWebhookUrl = process.env.DISCORD_WEBHOOK_URL;
   const giphyApiKey = process.env.GIPHY_API_KEY;
   
-  // --- UPDATED: Now accepts a userId ---
+  // The backend now accepts a message and an optional userId or isThankYou flag
   const { message, isThankYou, userId } = req.body;
 
   if (!discordWebhookUrl) {
@@ -40,13 +40,13 @@ app.post('/notify', async (req, res) => {
         embeds: [{ image: { url: gifUrl } }]
       };
     } else if (userId) {
-      // --- NEW: If a userId is provided, create a tagged message ---
+      // --- NEW: Generalized logic for any tagged message ---
+      // The ESP32 sends the full message text, and we just add the tag.
       payload = {
-        // This format <@USER_ID> creates a tag in Discord
-        content: `**Chore Reminder:** <@${userId}> is next to clean the bathroom.`
+        content: `<@${userId}> ${message}`
       };
     } else {
-      // This is a normal text notification (Warning, Urgent)
+      // This is for untagged messages (like the @here urgent one)
       payload = {
         content: message
       };
